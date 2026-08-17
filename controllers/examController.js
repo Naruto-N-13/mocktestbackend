@@ -351,8 +351,8 @@ function parseTextToQuestions(rawText) {
   // PDF లోని క్యారేజ్ రిటర్న్స్ క్లీన్ చేసి ఒకే స్ట్రింగ్‌లా మారుస్తుంది
   const cleanText = rawText.replace(/\r\n/g, '\n').replace(/\xa0/g, ' ');
 
-  // Q1., Q2., 1. లేదా Q: లాంటి క్వశ్చన్ హెడర్స్ ఆధారంగా ముక్కలు చేస్తుంది
-  const questionBlocks = cleanText.split(/(?=\n\s*(?:Q\d+[:\.]|\d+\.))/gi);
+  // FIX: Newline అవసరం లేకుండా direct గా Q1., Q2. లొకేషన్స్ ఆధారంగా ముక్కలు చేస్తుంది
+  const questionBlocks = cleanText.split(/(?=Q\d+[:\.])/gi);
   const questionsDraft = [];
 
   questionBlocks.forEach(block => {
@@ -361,22 +361,26 @@ function parseTextToQuestions(rawText) {
 
     // ANS: లేదా ANSWER: ఆధారంగా క్వశ్చన్ బాడీ మరియు ఆన్సర్‌ని విడగొడుతుంది
     const [mainContent, rawAnswer] = trimmedBlock.split(/ANS:\s*|ANSWER:\s*/i);
+    if (!mainContent) return;
     
     // A), B), C), D) ఆప్షన్లను సరిగ్గా కట్ చేయడానికి సింపుల్ split మెథడ్
     const partsA = mainContent.split(/A\)\s*|A\.\s*|A:\s*/i);
     if (partsA.length < 2) return; // A) ఆప్షన్ దొరకకపోతే ఆ బ్లాక్‌ని వదిలేస్తుంది
 
-    // క్వశ్చన్ టెక్స్ట్ నుండి స్టార్టింగ్ నంబర్‌ని క్లీన్ చేస్తుంది
+    // FIX: partsA[0] ని index చేసి క్వశ్చన్ టెక్స్ట్ నుండి స్టార్టింగ్ నంబర్‌ని క్లీన్ చేస్తుంది
     const questionText = partsA[0].replace(/^(?:Q\d+[:\.]|\d+\.)\s*/i, '').trim();
 
+    // Safe splitting with array checks to avoid undefined crashes
     const partsB = partsA[1].split(/B\)\s*|B\.\s*|B:\s*/i);
-    const optionA = partsB[0].trim();
+    const optionA = partsB[0] ? partsB[0].trim() : '';
+    if (partsB.length < 2) return; 
 
     const partsC = partsB[1].split(/C\)\s*|C\.\s*|C:\s*/i);
-    const optionB = partsC[0].trim();
+    const optionB = partsC[0] ? partsC[0].trim() : '';
+    if (partsC.length < 2) return;
 
     const partsD = partsC[1].split(/D\)\s*|D\.\s*|D:\s*/i);
-    const optionC = partsD[0].trim();
+    const optionC = partsD[0] ? partsD[0].trim() : '';
     const optionD = partsD[1] ? partsD[1].trim() : '';
 
     let masterCorrectKey = rawAnswer ? rawAnswer.trim() : '';
@@ -401,6 +405,8 @@ function parseTextToQuestions(rawText) {
 
   return questionsDraft;
 }
+
+
 
 const ExamController = {
   uploadAndProcessPdf: async (req, res) => {
